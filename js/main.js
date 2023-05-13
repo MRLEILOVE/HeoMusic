@@ -6,56 +6,92 @@ var volume = 0.8;
 const params = new URLSearchParams(window.location.search);
 
 var heo = {
-  // 音乐节目切换背景
-  changeMusicBg: function (isChangeBg = true) {
-    const heoMusicBg = document.getElementById("music_bg")
+    // 音乐节目切换背景
+    changeMusicBg: function (isChangeBg = true) {
+        const heoMusicBg = document.getElementById("music_bg")
 
-    if (isChangeBg) {
-      // player loadeddata 会进入此处
-      const musiccover = document.querySelector("#heoMusic-page .aplayer-pic");
-      var img = new Image();
-      img.src = extractValue(musiccover.style.backgroundImage);
-      img.onload = function() {
-        heoMusicBg.style.backgroundImage = musiccover.style.backgroundImage;
-      };
-    } else {
-      // 第一次进入，绑定事件，改背景
-      let timer = setInterval(()=>{
-        const musiccover = document.querySelector("#heoMusic-page .aplayer-pic");
-        // 确保player加载完成
-        // console.info(heoMusicBg);
-        if (musiccover) {
-          clearInterval(timer)
-          //初始化音量
-          document.querySelector('meting-js').aplayer.volume(0.8,true);
-          // 绑定事件
-          heo.addEventListenerChangeMusicBg();
+        if (isChangeBg) {
+            // player loadeddata 会进入此处
+            const musiccover = document.querySelector("#heoMusic-page .aplayer-pic");
+            var img = new Image();
+            img.src = extractValue(musiccover.style.backgroundImage);
+            img.onload = function () {
+                heoMusicBg.style.backgroundImage = musiccover.style.backgroundImage;
+            };
+        } else {
+            // 第一次进入，绑定事件，改背景
+            let timer = setInterval(() => {
+                const musiccover = document.querySelector("#heoMusic-page .aplayer-pic");
+                // 确保player加载完成
+                // console.info(heoMusicBg);
+                if (musiccover) {
+                    clearInterval(timer)
+                    //初始化音量
+                    document.querySelector('meting-js').aplayer.volume(0.8, true);
+                    // 绑定事件
+                    heo.addEventListenerChangeMusicBg();
+                }
+            }, 100)
         }
-      }, 100)
+    },
+    addEventListenerChangeMusicBg: function () {
+        const heoMusicPage = document.getElementById("heoMusic-page");
+        heoMusicPage.querySelector("meting-js").aplayer.on('loadeddata', function () {
+            heo.changeMusicBg();
+            // console.info('player loadeddata');
+        });
+    },
+    getCustomPlayList: function () {
+        const heoMusicPage = document.getElementById("heoMusic-page");
+        const playlistType = params.get("type") || "playlist";
+
+        if (params.get("id") && params.get("server")) {
+            console.log("获取到自定义内容")
+            var id = params.get("id")
+            var server = params.get("server")
+            heoMusicPage.innerHTML = `<meting-js id="${id}" server="${server}" type="${playlistType}" mutex="true" preload="auto" order="random"></meting-js>`;
+        } else {
+            console.log("无自定义内容")
+
+            /**
+             * 网易云推荐新音乐API
+             * 说明 : 调用此接口 , 可获取推荐新音乐
+             * 可选参数 : limit: 取出数量 , 默认为 10 (不支持 offset)
+             * 接口地址 : /personalized/newsong
+             * 调用例子 : /personalized/newsong?limit=1
+             * 更多接口参考：https://binaryify.github.io/NeteaseCloudMusicApi/#/
+             */
+
+            // 歌曲id
+            var userId;
+            var userServer = "netease";
+            var userType = "song";
+
+            // 创建 XMLHttpRequest 对象
+            var xhr = new XMLHttpRequest();
+
+            // 监听状态变化
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        // 成功获取数据，解析 JSON 格式数据
+                        var data = xhr.responseText;
+                        console.log('歌曲id:' + data);
+                        // 处理数据
+                        userId = data;
+                        heoMusicPage.innerHTML = `<meting-js id="${userId}" server="${userServer}" type="${userType}" mutex="true" preload="auto" order="random"></meting-js>`;
+                    }
+                }
+            };
+
+            // 设置请求方式和 URL
+            xhr.open('GET', 'http://localhost:3000/music.php');
+
+            // 发送请求
+            xhr.send();
+        }
+        heo.changeMusicBg(false);
     }
-  },
-  addEventListenerChangeMusicBg: function () {
-    const heoMusicPage = document.getElementById("heoMusic-page");
-    heoMusicPage.querySelector("meting-js").aplayer.on('loadeddata', function () {
-      heo.changeMusicBg();
-      // console.info('player loadeddata');
-    });
-  },
-  getCustomPlayList: function() {
-    const heoMusicPage = document.getElementById("heoMusic-page");
-    const playlistType = params.get("type") || "playlist";
-    
-    if (params.get("id") && params.get("server")) {
-      console.log("获取到自定义内容")
-      var id = params.get("id")
-      var server = params.get("server")
-      heoMusicPage.innerHTML = `<meting-js id="${id}" server="${server}" type="${playlistType}" mutex="true" preload="auto" order="random"></meting-js>`;
-    } else {
-      console.log("无自定义内容")
-      heoMusicPage.innerHTML = `<meting-js id="${userId}" server="${userServer}" type="${userType}" mutex="true" preload="auto" order="random"></meting-js>`;
-    }
-    heo.changeMusicBg(false);
-  }
 }
 
 // 调用
@@ -67,46 +103,48 @@ const vh = window.innerHeight * 1;
 document.documentElement.style.setProperty('--vh', `${vh}px`);
 
 window.addEventListener('resize', () => {
-  let vh = window.innerHeight * 1;
-  document.documentElement.style.setProperty('--vh', `${vh}px`);
+    let vh = window.innerHeight * 1;
+    document.documentElement.style.setProperty('--vh', `${vh}px`);
 });
 
 //获取图片url
 function extractValue(input) {
-  var valueRegex = /\("([^\s]+)"\)/g;
-  var match = valueRegex.exec(input);
-  return match[1];
+    var valueRegex = /\("([^\s]+)"\)/g;
+    var match = valueRegex.exec(input);
+    return match[1];
 }
 
 //空格控制音乐
-document.addEventListener("keydown", function(event) {
-  //暂停开启音乐
-  if (event.code === "Space") {
-    event.preventDefault();
-    document.querySelector('meting-js').aplayer.toggle();
-  };
-  //切换下一曲
-  if (event.keyCode === 39) {
-    event.preventDefault();
-    document.querySelector('meting-js').aplayer.skipForward();
-  };
-  //切换上一曲
-  if (event.keyCode === 37) {
-    event.preventDefault();
-    document.querySelector('meting-js').aplayer.skipBack();
-  }
-  //增加音量
-  if (event.keyCode === 38) {
-    if (volume <= 1) {
-      volume += 0.1;
-      document.querySelector('meting-js').aplayer.volume(volume,true);
+document.addEventListener("keydown", function (event) {
+    //暂停开启音乐
+    if (event.code === "Space") {
+        event.preventDefault();
+        document.querySelector('meting-js').aplayer.toggle();
     }
-  }
-  //减小音量
-  if (event.keyCode === 40) {
-    if (volume >= 0) {
-      volume += -0.1;
-      document.querySelector('meting-js').aplayer.volume(volume,true);
+    ;
+    //切换下一曲
+    if (event.keyCode === 39) {
+        event.preventDefault();
+        document.querySelector('meting-js').aplayer.skipForward();
     }
-  }
+    ;
+    //切换上一曲
+    if (event.keyCode === 37) {
+        event.preventDefault();
+        document.querySelector('meting-js').aplayer.skipBack();
+    }
+    //增加音量
+    if (event.keyCode === 38) {
+        if (volume <= 1) {
+            volume += 0.1;
+            document.querySelector('meting-js').aplayer.volume(volume, true);
+        }
+    }
+    //减小音量
+    if (event.keyCode === 40) {
+        if (volume >= 0) {
+            volume += -0.1;
+            document.querySelector('meting-js').aplayer.volume(volume, true);
+        }
+    }
 });
